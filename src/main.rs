@@ -9,7 +9,7 @@ fn main() {
     loop {
         let tasks = comms.get_tasks();
         for task in tasks {
-            println!("{}", task);
+            println!("{}", task.command);
         }
         // for elem in results {
             

